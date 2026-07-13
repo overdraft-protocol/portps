@@ -1,0 +1,103 @@
+#!/usr/bin/env zsh
+# portps — find (or kill) processes listening on TCP ports
+emulate -L zsh
+setopt extendedglob
+
+portps_main() {
+  local kill=0 pattern port pid line name
+  if [[ $1 == -k || $1 == --kill ]]; then
+    kill=1
+    shift
+  fi
+  pattern=$1
+  if [[ -z $pattern ]]; then
+    echo "usage: portps [-k|--kill] <port|pattern>" >&2
+    echo "  examples: portps 9100   portps 91*   portps 9???   portps '90[01]'" >&2
+    return 1
+  fi
+
+  local -a matches=()
+  pid=""
+  while IFS= read -r line; do
+    case $line in
+      p*)
+        pid=${line#p}
+        [[ $pid =~ '^[0-9]+$' ]] || pid=""
+        ;;
+      n*)
+        name=${line#n}
+        port=${name##*:}
+        port=${port%%\(*}
+        if [[ -n $pid && $port =~ '^[0-9]+$' ]]; then
+          if [[ $pattern == *'*'* || $pattern == *'?'* || $pattern == *'['* ]]; then
+            [[ $port == ${~pattern} ]] && matches+=("$port:$pid")
+          else
+            [[ $port == $pattern ]] && matches+=("$port:$pid")
+          fi
+        fi
+        ;;
+    esac
+  done < <(lsof -nP -iTCP -sTCP:LISTEN -F pn 2>/dev/null)
+
+  local -a unique=()
+  local match seen
+  for match in "${matches[@]}"; do
+    seen=0
+    for u in "${unique[@]}"; do
+      [[ $u == "$match" ]] && { seen=1; break; }
+    done
+    (( !seen )) && unique+=("$match")
+  done
+  if (( ${#unique[@]} )); then
+    matches=("${(@f)$(printf '%s\n' "${unique[@]}" | sort -t: -k1,1n)}")
+  else
+    matches=()
+  fi
+
+  if (( ${#matches[@]} == 0 )); then
+    echo "No process listening on port(s) matching: $pattern" >&2
+    return 1
+  fi
+
+  if (( kill )); then
+    local -a killed=()
+    for match in "${matches[@]}"; do
+      port=${match%%:*}
+      pid=${match##*:}
+      for k in "${killed[@]}"; do [[ $k == "$pid" ]] && continue 2; done
+      if kill "$pid" 2>/dev/null; then
+        echo "Killed PID $pid (port $port)"
+        killed+=("$pid")
+      else
+        echo "Failed to kill PID $pid (port $port)" >&2
+        return 1
+      fi
+    done
+    return 0
+  fi
+
+  local glob=0
+  [[ $pattern == *'*'* || $pattern == *'?'* || $pattern == *'['* ]] && glob=1
+
+  if (( ${#matches[@]} == 1 && !glob )); then
+    pid=${matches[1]##*:}
+    if [[ ! $pid =~ '^[0-9]+$' ]]; then
+      echo "No process listening on port(s) matching: $pattern" >&2
+      return 1
+    fi
+    ps -p "$pid" -o pid,ppid,user,command
+    return 0
+  fi
+
+  printf '%-8s %-7s %-7s %-8s %s\n' "PORT" "PID" "PPID" "USER" "COMMAND"
+  for match in "${matches[@]}"; do
+    port=${match%%:*}
+    pid=${match##*:}
+    ps -p "$pid" -o pid=,ppid=,user=,command= 2>/dev/null \
+      | while read -r p pp u cmd; do
+          printf '%-8s %-7s %-7s %-8s %s\n' "$port" "$p" "$pp" "$u" "$cmd"
+        done
+  done
+}
+
+portps_main "$@"
