@@ -46,6 +46,7 @@ $MARKER
 alias portps='noglob command portps'
 EOF
     echo "Added noglob alias to $ZSHRC"
+    echo "Run: source $ZSHRC"
   else
     echo "Zsh integration already present in $ZSHRC"
   fi
