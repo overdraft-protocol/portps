@@ -3,10 +3,10 @@ set -euo pipefail
 
 PREFIX="${PREFIX:-$HOME/.local}"
 INSTALL_DIR="$PREFIX/bin"
-ZSHRC="${ZSHRC:-$HOME/.zshrc}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE="$SCRIPT_DIR/bin/portps"
-MARKER="# portps shell integration"
+# shellcheck source=scripts/shell-integration.sh
+source "$SCRIPT_DIR/scripts/shell-integration.sh"
 
 usage() {
   cat <<'EOF'
@@ -17,14 +17,16 @@ Usage:
 
 Options:
   --prefix <dir>   Install bin to <dir>/bin (default: ~/.local)
-  --zsh            Add noglob alias to ~/.zshrc (recommended for zsh users)
-  --uninstall      Remove binary and zsh integration
+  --zsh            Add zsh noglob alias to ~/.zshrc (unquoted globs)
+  --bash           Add bash pattern tip to ~/.bashrc
+  --shell          Auto-detect shell and add integration
+  --uninstall      Remove binary and shell integration
   -h, --help       Show this help
 
 Examples:
+  ./install.sh --shell
   ./install.sh --zsh
   PREFIX=/usr/local ./install.sh
-  npm install -g .
 EOF
 }
 
@@ -38,33 +40,14 @@ install_bin() {
   fi
 }
 
-install_zsh() {
-  if ! grep -qF "$MARKER" "$ZSHRC" 2>/dev/null; then
-    cat >>"$ZSHRC" <<EOF
-
-$MARKER
-alias portps='noglob command portps'
-EOF
-    echo "Added noglob alias to $ZSHRC"
-    echo "Run: source $ZSHRC"
-  else
-    echo "Zsh integration already present in $ZSHRC"
-  fi
-}
-
 uninstall() {
   rm -f "$INSTALL_DIR/portps"
   echo "Removed $INSTALL_DIR/portps"
-  if [[ -f $ZSHRC ]]; then
-    sed -i.bak "/$MARKER/,+1d" "$ZSHRC"
-    rm -f "$ZSHRC.bak"
-    echo "Removed zsh integration from $ZSHRC"
-  fi
+  portps_remove_shell_integration
 }
 
 main() {
-  local do_zsh=0
-  local do_uninstall=0
+  local do_zsh=0 do_bash=0 do_shell=0 do_uninstall=0
 
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -74,6 +57,8 @@ main() {
         shift 2
         ;;
       --zsh) do_zsh=1; shift ;;
+      --bash) do_bash=1; shift ;;
+      --shell) do_shell=1; shift ;;
       --uninstall) do_uninstall=1; shift ;;
       -h|--help) usage; exit 0 ;;
       *) echo "Unknown option: $1" >&2; usage; exit 1 ;;
@@ -94,8 +79,12 @@ main() {
   fi
 
   install_bin
-  if (( do_zsh )); then
-    install_zsh
+  if (( do_shell )); then
+    portps_install_shell_integration
+  elif (( do_zsh )); then
+    portps_install_zsh
+  elif (( do_bash )); then
+    portps_install_bash_note
   fi
 }
 

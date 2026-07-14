@@ -1,0 +1,20 @@
+{
+  "name": "overdraft-portps",
+  "owner": {
+    "name": "Overdraft Protocol"
+  },
+  "metadata": {
+    "description": "CLI and agent skill for finding or killing processes on TCP ports"
+  },
+  "plugins": [
+    {
+      "name": "portps",
+      "source": "./",
+      "description": "Find or kill processes listening on TCP ports",
+      "version": "1.1.0",
+      "author": {
+        "name": "Overdraft Protocol"
+      }
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "name": "@overdraft-protocol/portps",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Find or kill processes listening on TCP ports (supports glob patterns)",
   "license": "MIT",
   "bin": {
@@ -10,6 +10,7 @@
     "bin/portps",
     "install.sh",
     "scripts/postinstall.sh",
+    "scripts/shell-integration.sh",
     "README.md",
     "LICENSE"
   ],
@@ -28,7 +29,8 @@
     "lsof",
     "process",
     "cli",
-    "devtools"
+    "devtools",
+    "bash"
   ],
   "repository": {
     "type": "git",

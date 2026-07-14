@@ -1,0 +1,12 @@
+{
+  "name": "portps",
+  "version": "1.1.0",
+  "description": "Find or kill processes listening on TCP ports via the portps CLI",
+  "author": {
+    "name": "Overdraft Protocol"
+  },
+  "homepage": "https://github.com/overdraft-protocol/portps",
+  "repository": "https://github.com/overdraft-protocol/portps",
+  "license": "MIT",
+  "keywords": ["cli", "ports", "devtools", "lsof"]
+}
