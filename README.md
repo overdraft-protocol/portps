@@ -138,12 +138,21 @@ Project skill: `.cursor/skills/portps/SKILL.md`. Copy into `~/.cursor/skills/por
 
 Checklist for maintainers:
 
-1. **Bump version** in `package.json`, commit, push
-2. **npm** — `npm publish --access=public`
-3. **GitHub release** — tag `v<version>` (e.g. `gh release create v1.1.1`). The [Sync Homebrew tap](.github/workflows/sync-homebrew-tap.yml) workflow updates [`homebrew-portps`](https://github.com/overdraft-protocol/homebrew-portps) automatically
-4. **One-time — write deploy key for the tap** (see setup steps below)
-5. **Claude Code** — `/plugin marketplace add overdraft-protocol/portps` then `/plugin install portps@overdraft-portps`
-6. **Topics** on the GitHub repo: `cli`, `bash`, `devtools`, `ports`, `lsof`
+1. **One-shot release** (npm publish + tag + `gh release create`; Homebrew sync follows):
+
+   ```bash
+   # current package.json version already committed:
+   npm run release
+
+   # or bump then release:
+   npm run release:patch    # or release:minor / release:major
+   ./scripts/release.sh 1.2.0
+   ./scripts/release.sh --dry-run patch   # preview
+   ```
+
+2. **One-time — write deploy key for the tap** (see setup steps below)
+3. **Claude Code** — `/plugin marketplace add overdraft-protocol/portps` then `/plugin install portps@overdraft-portps`
+4. **Topics** on the GitHub repo: `cli`, `bash`, `devtools`, `ports`, `lsof`
 
 ### Homebrew tap deploy key (one-time)
 
