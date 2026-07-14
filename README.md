@@ -36,6 +36,7 @@ source ~/.zshrc   # or: source ~/.bashrc
 
 ```bash
 brew tap overdraft-protocol/portps
+brew trust overdraft-protocol/portps   # required once for third-party taps
 brew install portps
 ```
 
