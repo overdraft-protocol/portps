@@ -36,8 +36,8 @@ class Portps < Formula
 
   def caveats
     <<~EOS
-      On zsh: alias portps='noglob command portps'  # then: portps 91*
-      In bash: quote patterns (portps '91*') or use %/_ (portps 91%)
+      Prefer shell-safe patterns: portps 91%
+      Optional: portps --setup-shell
     EOS
   end
 

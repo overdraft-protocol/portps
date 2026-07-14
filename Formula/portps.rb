@@ -14,11 +14,12 @@ class Portps < Formula
 
   def caveats
     <<~EOS
-      On zsh, add a noglob alias so unquoted globs work:
-        alias portps='noglob command portps'
-        portps 91*
+      Prefer shell-safe patterns (no quoting / setup needed):
+        portps 91%
+        portps 9___
 
-      In bash, quote patterns (portps '91*'), or use shell-safe %/_ (portps 91%).
+      Optional: portps --setup-shell
+      (zsh noglob alias for classic * ? globs)
     EOS
   end
 

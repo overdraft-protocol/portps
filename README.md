@@ -4,13 +4,13 @@ Find or kill processes listening on TCP ports. Supports exact ports and glob pat
 
 ```bash
 portps 9100           # exact port
-portps 91*            # all ports starting with 91
-portps 9???           # four-character ports starting with 9
+portps 91%            # ports starting with 91  (shell-safe)
+portps 9___           # four-character ports starting with 9
 portps -k 9100        # kill listener on port 9100
-portps -k 91*         # kill all listeners on matching ports
+portps -k 91%         # kill all matching listeners
 ```
 
-Works with **bash** or **zsh** (bash 3.2+ / macOS system bash is fine). On zsh, install adds a `noglob` alias so patterns like `91*` work unquoted. In bash (or without the alias), quote them: `portps '91*'`.
+Works with **bash** or **zsh** (bash 3.2+ / macOS system bash is fine). Prefer **shell-safe** patterns (`%` = any run of characters, `_` = one character) so nothing in your shell expands them. Classic `*` / `?` / `[…]` still work if quoted, or after `portps --setup-shell` on zsh.
 
 ## Requirements
 
@@ -26,10 +26,11 @@ Works with **bash** or **zsh** (bash 3.2+ / macOS system bash is fine). On zsh, 
 npm install -g @overdraft-protocol/portps
 ```
 
-Global install runs a postinstall hook that adds shell integration for your current `$SHELL` (zsh `noglob` alias, or a bash tip in `~/.bashrc`). Then reload:
+Optional (only if you want unquoted classic `*` globs on zsh):
 
 ```bash
-source ~/.zshrc   # or: source ~/.bashrc
+portps --setup-shell
+source ~/.zshrc   # or ~/.bashrc
 ```
 
 ### Homebrew
@@ -39,6 +40,8 @@ brew tap overdraft-protocol/portps
 brew trust overdraft-protocol/portps   # required once for third-party taps
 brew install portps
 ```
+
+Optional after install: `portps --setup-shell`.
 
 That uses the [`overdraft-protocol/homebrew-portps`](https://github.com/overdraft-protocol/homebrew-portps) tap. Publishing a GitHub Release here (tag `vX.Y.Z`) runs a workflow that updates the formula checksum and pushes it to the tap.
 
@@ -51,27 +54,28 @@ Local smoke test from this repo:
 Manual formula refresh (without pushing the tap):
 
 ```bash
-./scripts/update-formula-sha.sh 1.1.0
+./scripts/update-formula-sha.sh 1.1.1
 ```
+
 ### From source
 
 ```bash
 git clone https://github.com/overdraft-protocol/portps.git
 cd portps
-./install.sh --shell
-source ~/.zshrc   # or ~/.bashrc
+./install.sh                 # binary only; tip printed for patterns
+./install.sh --shell         # also runs portps --setup-shell
 ```
 
-- `--shell` — auto-detect bash/zsh and add integration  
-- `--zsh` — zsh `noglob` alias only  
-- `--bash` — bash quote tip only  
-- `PREFIX=/usr/local ./install.sh` — custom install prefix  
+- `--shell` — `portps --setup-shell`
+- `--zsh` / `--bash` — setup for that shell only
+- `PREFIX=/usr/local ./install.sh` — custom install prefix
 
 ### Manual
 
 ```bash
 cp bin/portps ~/.local/bin/
 chmod +x ~/.local/bin/portps
+# optional: portps --setup-shell
 ```
 
 ## Uninstall
@@ -84,20 +88,32 @@ npm uninstall -g @overdraft-protocol/portps
 brew uninstall portps
 ```
 
-`install.sh --uninstall` removes the binary and shell integration markers from `~/.zshrc` / `~/.bashrc`.
+`portps --remove-shell` (also used by `install.sh --uninstall`) removes shell integration markers from `~/.zshrc` / `~/.bashrc`.
 
 ## Pattern syntax
+
+### Shell-safe (recommended)
+
+These do **not** need quoting and are not expanded by bash/zsh:
 
 | Pattern | Matches |
 |---------|---------|
 | `9100` | port 9100 exactly |
-| `91*` | ports starting with `91` |
-| `9???` | port + exactly 3 more characters |
+| `91%` | ports starting with `91` |
+| `9___` | port + exactly 3 more characters |
+| `90%` | ports starting with `90` |
+
+`%` → any sequence (like `*`), `_` → one character (like `?`).
+
+### Classic globs
+
+| Pattern | Matches |
+|---------|---------|
+| `91*` | same as `91%` |
+| `9???` | same as `9___` |
 | `90[01]*` | ports starting with `900` or `901` |
 
-**zsh:** with the install alias, `portps 91*` works unquoted.
-
-**bash:** quote patterns (`portps '91*'`). Alternately, `%` / `_` are shell-safe synonyms for `*` / `?` (`portps 91%`).
+Quote classic globs (`portps '91*'`), or on zsh run `portps --setup-shell` so unquoted `*` works via a `noglob` alias.
 
 ## Claude Code / Cursor
 
@@ -105,24 +121,18 @@ This repo ships an agent skill so coding agents know when and how to run `portps
 
 ### Claude Code
 
-Add this repo as a marketplace and install the plugin:
-
 ```text
 /plugin marketplace add overdraft-protocol/portps
 /plugin install portps@overdraft-portps
 ```
 
-Or test locally:
-
-```bash
-claude --plugin-dir /path/to/portps
-```
+Or test locally: `claude --plugin-dir /path/to/portps`
 
 Skill path: `skills/portps/SKILL.md`
 
 ### Cursor
 
-Project skill: `.cursor/skills/portps/SKILL.md` (available when this repo is open). Copy that folder into `~/.cursor/skills/portps/` for global use.
+Project skill: `.cursor/skills/portps/SKILL.md`. Copy into `~/.cursor/skills/portps/` for global use.
 
 ## Distribution
 
@@ -130,7 +140,7 @@ Checklist for maintainers:
 
 1. **Bump version** in `package.json`, commit, push
 2. **npm** — `npm publish --access=public`
-3. **GitHub release** — tag `v<version>` (e.g. `gh release create v1.1.0`). The [Sync Homebrew tap](.github/workflows/sync-homebrew-tap.yml) workflow updates [`homebrew-portps`](https://github.com/overdraft-protocol/homebrew-portps) automatically
+3. **GitHub release** — tag `v<version>` (e.g. `gh release create v1.1.1`). The [Sync Homebrew tap](.github/workflows/sync-homebrew-tap.yml) workflow updates [`homebrew-portps`](https://github.com/overdraft-protocol/homebrew-portps) automatically
 4. **One-time — write deploy key for the tap** (see setup steps below)
 5. **Claude Code** — `/plugin marketplace add overdraft-protocol/portps` then `/plugin install portps@overdraft-portps`
 6. **Topics** on the GitHub repo: `cli`, `bash`, `devtools`, `ports`, `lsof`
@@ -159,8 +169,7 @@ Checklist for maintainers:
    rm -f ./portps-tap-deploy ./portps-tap-deploy.pub
    ```
 
-6. Smoke-test: Actions → Sync Homebrew tap → Run workflow with version `1.1.0` (after a matching `v1.1.0` tag/release exists).
-
+6. Smoke-test: Actions → Sync Homebrew tap → Run workflow with version `1.1.1` (after a matching `v1.1.1` tag/release exists).
 
 ## License
 

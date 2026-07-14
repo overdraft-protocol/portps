@@ -5,8 +5,6 @@ PREFIX="${PREFIX:-$HOME/.local}"
 INSTALL_DIR="$PREFIX/bin"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE="$SCRIPT_DIR/bin/portps"
-# shellcheck source=scripts/shell-integration.sh
-source "$SCRIPT_DIR/scripts/shell-integration.sh"
 
 usage() {
   cat <<'EOF'
@@ -17,16 +15,19 @@ Usage:
 
 Options:
   --prefix <dir>   Install bin to <dir>/bin (default: ~/.local)
-  --zsh            Add zsh noglob alias to ~/.zshrc (unquoted globs)
-  --bash           Add bash pattern tip to ~/.bashrc
-  --shell          Auto-detect shell and add integration
+  --shell          Run: portps --setup-shell (zsh noglob or bash tip)
+  --zsh            Run: portps --setup-shell zsh
+  --bash           Run: portps --setup-shell bash
   --uninstall      Remove binary and shell integration
   -h, --help       Show this help
 
 Examples:
+  ./install.sh
   ./install.sh --shell
-  ./install.sh --zsh
   PREFIX=/usr/local ./install.sh
+
+Patterns work without setup using shell-safe % / _ :
+  portps 91%
 EOF
 }
 
@@ -41,9 +42,11 @@ install_bin() {
 }
 
 uninstall() {
+  if [[ -x $INSTALL_DIR/portps ]]; then
+    "$INSTALL_DIR/portps" --remove-shell || true
+  fi
   rm -f "$INSTALL_DIR/portps"
   echo "Removed $INSTALL_DIR/portps"
-  portps_remove_shell_integration
 }
 
 main() {
@@ -80,11 +83,14 @@ main() {
 
   install_bin
   if (( do_shell )); then
-    portps_install_shell_integration
+    "$INSTALL_DIR/portps" --setup-shell
   elif (( do_zsh )); then
-    portps_install_zsh
+    "$INSTALL_DIR/portps" --setup-shell zsh
   elif (( do_bash )); then
-    portps_install_bash_note
+    "$INSTALL_DIR/portps" --setup-shell bash
+  else
+    echo "portps: tip — shell-safe patterns need no setup: portps 91%"
+    echo "portps: optional classic * globs: $INSTALL_DIR/portps --setup-shell"
   fi
 }
 

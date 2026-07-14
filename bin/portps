@@ -2,6 +2,8 @@
 # portps — find (or kill) processes listening on TCP ports
 set -e
 
+MARKER="# portps shell integration"
+
 # True if pattern uses wildcards (shell-safe %/_ or classic *?[]).
 portps_is_glob() {
   case $1 in
@@ -19,11 +21,136 @@ portps_to_shell_glob() {
   printf '%s' "$p"
 }
 
+portps_usage() {
+  cat <<'EOF' >&2
+usage: portps [-k|--kill] <port|pattern>
+       portps --setup-shell [zsh|bash|auto]
+       portps --remove-shell
+
+  shell-safe patterns (no quoting needed):
+    portps 91%          ports starting with 91
+    portps 9___         four-character ports starting with 9
+    portps -k 91%
+
+  classic globs (quote them, or run: portps --setup-shell):
+    portps '91*'   portps '9???'   portps '90[01]*'
+EOF
+}
+
+portps_install_zsh() {
+  local zshrc="${ZSHRC:-$HOME/.zshrc}"
+  if [[ ! -f $zshrc ]]; then
+    touch "$zshrc"
+  fi
+  if grep -qF "$MARKER" "$zshrc" 2>/dev/null; then
+    echo "portps: zsh integration already present in $zshrc"
+    return 0
+  fi
+  cat >>"$zshrc" <<EOF
+
+$MARKER
+alias portps='noglob command portps'
+EOF
+  echo "portps: added noglob alias to $zshrc"
+  echo "portps: run: source $zshrc"
+  echo "portps: tip — or use shell-safe patterns: portps 91%"
+}
+
+portps_install_bash_note() {
+  local bashrc="${BASHRC:-$HOME/.bashrc}"
+  if [[ ! -f $bashrc ]]; then
+    touch "$bashrc"
+  fi
+  if grep -qF "$MARKER" "$bashrc" 2>/dev/null; then
+    echo "portps: bash note already present in $bashrc"
+    return 0
+  fi
+  cat >>"$bashrc" <<EOF
+
+$MARKER
+# Prefer shell-safe patterns: portps 91%  (or quote: portps '91*')
+EOF
+  echo "portps: added bash pattern tip to $bashrc"
+  echo "portps: run: source $bashrc"
+  echo "portps: tip — prefer shell-safe patterns: portps 91%"
+}
+
+portps_setup_shell() {
+  local which=${1:-auto}
+  local shell_name
+  shell_name=$(basename "${SHELL:-}")
+
+  case $which in
+    zsh) portps_install_zsh ;;
+    bash)
+      portps_install_bash_note
+      echo "portps: prefer shell-safe patterns: portps 91%"
+      ;;
+    auto|"")
+      case $shell_name in
+        zsh) portps_install_zsh ;;
+        bash)
+          portps_install_bash_note
+          echo "portps: prefer shell-safe patterns: portps 91%"
+          ;;
+        *)
+          if [[ -f $HOME/.zshrc ]]; then
+            portps_install_zsh
+          elif [[ -f $HOME/.bashrc ]]; then
+            portps_install_bash_note
+          else
+            echo "portps: tip — use shell-safe patterns: portps 91%"
+            echo "portps: for classic * ? globs on zsh: portps --setup-shell zsh"
+          fi
+          ;;
+      esac
+      ;;
+    *)
+      echo "portps: unknown shell '$which' (use zsh, bash, or auto)" >&2
+      return 1
+      ;;
+  esac
+}
+
+portps_remove_shell() {
+  local rc
+  for rc in "${ZSHRC:-$HOME/.zshrc}" "${BASHRC:-$HOME/.bashrc}"; do
+    [[ -f $rc ]] || continue
+    if grep -qF "$MARKER" "$rc" 2>/dev/null; then
+      awk -v m="$MARKER" '
+        $0 == m { skip=1; next }
+        skip {
+          if ($0 ~ /^#/ || $0 ~ /^alias /) next
+          skip=0
+        }
+        { print }
+      ' "$rc" >"$rc.tmp" && mv "$rc.tmp" "$rc"
+      echo "portps: removed shell integration from $rc"
+    fi
+  done
+}
+
 portps_main() {
   local kill=0 pattern glob_pat port pid line name
   local -a matches unique killed
   local match seen u k glob=0
   local p pp user cmd
+
+  case ${1:-} in
+    -h|--help)
+      portps_usage
+      return 0
+      ;;
+    --setup-shell)
+      shift
+      portps_setup_shell "${1:-auto}"
+      return $?
+      ;;
+    --remove-shell)
+      portps_remove_shell
+      return 0
+      ;;
+  esac
 
   if [[ ${1:-} == -k || ${1:-} == --kill ]]; then
     kill=1
@@ -31,8 +158,7 @@ portps_main() {
   fi
   pattern=${1:-}
   if [[ -z $pattern ]]; then
-    echo "usage: portps [-k|--kill] <port|pattern>" >&2
-    echo "  examples: portps 9100   portps '91*'   portps '9???'   portps '90[01]*'" >&2
+    portps_usage
     return 1
   fi
 
